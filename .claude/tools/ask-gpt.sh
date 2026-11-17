@@ -9,7 +9,11 @@ ROOT="${0:A:h:h:h}"
 BRIEF="$1"
 NAME="${2:-run-$(date +%Y%m%d-%H%M%S)}"
 
-if ! command -v codex >/dev/null 2>&1; then
+# Use codex from PATH, or the copy bundled inside the ChatGPT desktop app.
+CODEX="$(command -v codex 2>/dev/null || true)"
+BUNDLED=/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex
+[[ -z "$CODEX" && -x "$BUNDLED" ]] && CODEX="$BUNDLED"
+if [[ -z "$CODEX" ]]; then
   echo "ERROR: Codex CLI is not installed. See https://github.com/openai/codex, then run 'codex login'." >&2
   exit 2
 fi
@@ -23,7 +27,7 @@ OUT="$ROOT/.gpt-runs/$NAME.md"
 MODEL_ARGS=()
 [[ -n "$GPT_MODEL" ]] && MODEL_ARGS=(-m "$GPT_MODEL")
 
-codex exec --sandbox read-only -C "$ROOT" "${MODEL_ARGS[@]}" \
+"$CODEX" exec --sandbox read-only -C "$ROOT" "${MODEL_ARGS[@]}" \
   --output-last-message "$OUT" - < "$BRIEF" > "$ROOT/.gpt-runs/$NAME.log" 2>&1 \
   || { echo "ERROR: codex failed. Last lines of the log:" >&2; tail -20 "$ROOT/.gpt-runs/$NAME.log" >&2; exit 1; }
 
