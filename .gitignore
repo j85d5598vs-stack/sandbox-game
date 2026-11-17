@@ -1,0 +1,19 @@
+# macOS
+.DS_Store
+
+# Xcode per-user state and build output
+xcuserdata/
+DerivedData/
+build/
+*.xcuserstate
+
+# Playtest bot build output
+Sandbox/Tools/playtest/playtest
+Sandbox/Tools/playtest/.build/
+
+# Local scratch output from GPT consultations
+.gpt-runs/
+
+# Secrets
+.env
+.env.*

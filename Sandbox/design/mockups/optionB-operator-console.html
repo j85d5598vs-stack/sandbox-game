@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sandbox · Option B · Operator Console</title>
+<style>
+:root{--ink:#14151F;--panel:#1C1E2B;--panel2:#252839;--line:#33374E;--text:#EBE9F2;--muted:#9391AB;--signal:#FFB547;--heat:#FF6159;--calm:#5FD0B6;--trust:#84A9FF;--lev:#D692FF;
+--mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,monospace;--sans:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:#0B0C12;color:var(--text);font-family:var(--sans);display:flex;flex-direction:column;align-items:center;padding:20px 12px 60px;gap:18px}
+h1.page{font-family:var(--mono);font-size:14px;letter-spacing:2px;color:var(--muted);font-weight:600}
+h1.page b{color:var(--trust)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;max-width:860px}
+.tabs button{font:600 12px var(--mono);letter-spacing:1px;padding:9px 14px;border-radius:20px;border:1px solid var(--line);background:var(--panel);color:var(--muted);cursor:pointer}
+.tabs button.on{background:var(--trust);color:var(--ink);border-color:var(--trust)}
+.wrap{display:flex;gap:32px;align-items:flex-start;flex-wrap:wrap;justify-content:center}
+.phone{width:390px;height:844px;border-radius:54px;background:var(--ink);position:relative;overflow:hidden;box-shadow:0 0 0 11px #000,0 0 0 13px #2a2c38,0 30px 80px rgba(0,0,0,.6);flex:none}
+.notes{width:330px;font-size:13px;line-height:1.55;color:var(--muted)}
+.notes h3{font:600 11px var(--mono);letter-spacing:1.4px;color:var(--text);margin:14px 0 4px;text-transform:uppercase}
+.notes p,.notes li{margin-bottom:6px}.notes ul,.notes ol{padding-left:16px}.notes b{color:var(--text)}
+.island{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:122px;height:35px;background:#000;border-radius:20px;z-index:90}
+.homebar{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:134px;height:5px;border-radius:3px;background:rgba(235,233,242,.5);z-index:95;pointer-events:none}
+.status{height:50px;flex:none;display:flex;justify-content:space-between;align-items:center;padding:12px 32px 0 36px;font-weight:600;font-size:15px}
+.screen{position:absolute;inset:0;display:none;flex-direction:column}
+.screen.on{display:flex}
+.lbl{font:600 10px var(--mono);letter-spacing:1.4px;text-transform:uppercase;color:var(--muted)}
+.mono{font-family:var(--mono)}
+button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:none}
+.btn{border-radius:14px;min-height:52px;font-weight:600;font-size:16px}
+.btn.primary{background:var(--signal);color:var(--ink)}
+.btn.ghost{background:var(--panel2);border:1px solid var(--line)}
+.btn:disabled{opacity:.38}
+.toast{position:absolute;left:16px;right:16px;bottom:110px;z-index:80;background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:14px;display:flex;gap:10px;align-items:center;opacity:0;transform:translateY(16px);transition:all .3s;pointer-events:none}
+.toast.on{opacity:1;transform:none}
+.toast .dot{width:10px;height:10px;border-radius:50%;flex:none}
+
+/* ---------- SETUP (form) ---------- */
+.form{flex:1;overflow-y:auto;scrollbar-width:none;padding:0 16px 120px}
+.form::-webkit-scrollbar{display:none}
+.doc-head{padding:6px 2px 14px;border-bottom:1px dashed var(--line);margin-bottom:14px}
+.doc-head h2{font:700 22px var(--mono);margin-top:6px}
+.doc-head p{font-size:14px;color:var(--muted);margin-top:4px}
+.resume-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:rgba(255,181,71,.08);border:1px solid rgba(255,181,71,.45);margin-bottom:18px;cursor:pointer;min-height:60px}
+.sec{font:600 11px var(--mono);letter-spacing:1.4px;color:var(--text);margin:18px 2px 8px;display:flex;gap:8px}
+.sec span{color:var(--signal)}
+.opt{border:1px solid var(--line);background:var(--panel);border-radius:14px;margin-bottom:8px;overflow:hidden;cursor:pointer}
+.opt .head{display:flex;align-items:center;gap:12px;padding:12px 14px;min-height:60px}
+.opt .rad{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);flex:none;display:flex;align-items:center;justify-content:center}
+.opt.sel{border-color:var(--signal)}
+.opt.sel .rad{border-color:var(--signal)}
+.opt.sel .rad:after{content:"";width:10px;height:10px;border-radius:50%;background:var(--signal)}
+.opt .t{font:700 14px var(--mono)}
+.opt .s{font-size:12px;color:var(--muted);margin-top:1px}
+.opt .grow{flex:1}
+.opt .mini{font:600 10px var(--mono);color:var(--muted);text-align:right;line-height:1.4}
+.opt .more{display:none;padding:0 14px 14px 48px;font-size:14px;line-height:1.4;flex-direction:column;gap:6px}
+.opt.sel .more{display:flex}
+.opt .more div{display:flex;gap:8px}
+.opt .more i{font:700 11px var(--mono);font-style:normal;width:18px;height:18px;border-radius:5px;display:flex;align-items:center;justify-content:center;flex:none;margin-top:1px}
+.modes{display:flex;gap:8px}
+.mcard{flex:1;border:1px solid var(--line);background:var(--panel);border-radius:16px;padding:14px;cursor:pointer;min-height:170px;display:flex;flex-direction:column;gap:8px}
+.mcard.sel{border-color:var(--signal);background:rgba(255,181,71,.06)}
+.mcard.bad.sel{border-color:var(--heat);background:rgba(255,97,89,.07)}
+.mcard h4{font:700 16px var(--mono)}
+.mcard p{font-size:13px;color:var(--muted);line-height:1.35}
+.mcard q{font:500 12px var(--mono);color:var(--signal);quotes:none}
+.sticky{position:absolute;left:0;right:0;bottom:0;padding:12px 16px 34px;background:linear-gradient(to top,var(--ink) 70%,rgba(20,21,31,0));z-index:10}
+.sticky .sum{font:500 11px var(--mono);color:var(--muted);text-align:center;margin-bottom:8px}
+
+/* ---------- CONSOLE ---------- */
+.top{flex:none;padding:0 16px;display:flex;flex-direction:column;gap:8px}
+.prompt{display:flex;align-items:center;gap:10px}
+.prompt .p{flex:1;min-width:0;font:500 14px/1.3 var(--mono);color:var(--signal);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 10px}
+.prompt .p .k{color:var(--muted);font-size:10px;letter-spacing:1.2px;display:block;margin-bottom:2px}
+.pause{width:44px;height:44px;border-radius:12px;background:var(--panel);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;flex:none}
+.rail{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:9px}
+.rrow .rt{display:flex;align-items:baseline;gap:8px}
+.rrow .rt .v{font:700 17px var(--mono);margin-left:auto}
+.rrow .rt .w{font:700 10px var(--mono);letter-spacing:1px}
+.rbar{height:10px;border-radius:5px;background:var(--panel2);margin-top:5px;position:relative}
+.rbar .f{position:absolute;left:0;top:0;bottom:0;border-radius:5px;transition:width .5s,background .5s}
+.rbar .tk{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink)}
+.segbar{display:flex;gap:3px;margin-top:5px}
+.segbar i{flex:1;height:10px;border-radius:3px;background:var(--panel2);display:block}
+.segbar i.p{background:var(--muted)}
+.segbar i.ship{outline:1.5px solid var(--heat)}
+.cuts{position:relative;height:12px;margin-top:3px;font:600 9px var(--mono);color:var(--muted)}
+.cuts span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+.band{flex:none;position:relative;height:122px;margin:0 16px;border-radius:14px;background:var(--panel);border:1px solid var(--line);overflow:hidden}
+.band svg{width:100%;height:100%}
+.band .bl{position:absolute;left:10px;top:7px}
+.sigtray{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:0 16px;flex:none;min-height:0}
+.sigtray::-webkit-scrollbar{display:none}
+.schip{flex:none;height:36px;border-radius:18px;padding:0 12px 0 6px;display:flex;align-items:center;gap:7px;font:600 12px var(--mono);border:1px solid;animation:pop .4s cubic-bezier(.3,1.6,.5,1) both;cursor:pointer}
+.schip .ic{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.list{flex:1;overflow-y:auto;scrollbar-width:none;padding:4px 16px 16px;position:relative}
+.list::-webkit-scrollbar{display:none}
+.rhead{position:sticky;top:0;z-index:3;background:var(--ink);display:flex;align-items:center;gap:8px;padding:12px 2px 8px;cursor:pointer;min-height:44px}
+.rhead .nm{font:700 12px var(--mono);letter-spacing:1px}
+.rhead .meta{font:500 11px var(--mono);color:var(--muted);margin-left:auto;display:flex;gap:8px;align-items:center}
+.seg{display:flex;gap:2px}.seg i{width:10px;height:6px;border-radius:2px;display:block}
+.arow{display:flex;align-items:center;gap:10px;padding:10px;background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-bottom:6px;min-height:64px;transition:background .3s}
+.arow.flash{background:var(--panel2)}
+.glyph{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font:700 14px var(--mono);flex:none;border:1px solid}
+.arow .info{flex:1;min-width:0}
+.arow .n{font:700 14px var(--mono);display:flex;gap:6px;align-items:center}
+.arow .c{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.arow .stl{font:600 10px var(--mono);letter-spacing:.6px;margin-top:2px}
+.ib{width:70px;height:46px;border-radius:11px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:600;font-size:13px;border:1px solid;flex:none;line-height:1.1}
+.ib small{font:500 9px var(--mono);opacity:.8}
+.ib.t{color:var(--text);background:rgba(132,169,255,.12);border-color:rgba(132,169,255,.55)}
+.ib.l{color:var(--text);background:rgba(214,146,255,.12);border-color:rgba(214,146,255,.55)}
+.ib:disabled{opacity:.32}
+.note{font-size:13px;color:var(--muted);padding:10px 12px;border:1px dashed var(--line);border-radius:12px;margin-bottom:6px}
+.projcard{background:linear-gradient(135deg,rgba(95,208,182,.12),rgba(95,208,182,.03));border:1px solid rgba(95,208,182,.45);border-radius:16px;padding:12px;margin:6px 0 4px}
+.slide{position:relative;height:56px;border-radius:28px;background:rgba(255,97,89,.1);border:1.5px solid var(--heat);margin-top:10px;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+.slide .lab{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:700 13px var(--mono);letter-spacing:1px;color:var(--heat);padding-left:40px}
+.slide .knob{position:absolute;left:4px;top:4px;width:46px;height:46px;border-radius:50%;background:var(--heat);display:flex;align-items:center;justify-content:center;cursor:grab}
+.slide .trail{position:absolute;left:0;top:0;bottom:0;background:rgba(255,97,89,.25);width:0}
+.bbar{flex:none;display:flex;gap:8px;padding:8px 16px 30px;border-top:1px solid var(--line);background:var(--ink)}
+.side{width:76px;min-height:66px;border-radius:14px;background:var(--panel);border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:12px;font-weight:600;position:relative}
+.side small{font:500 9px var(--mono);color:var(--muted)}
+.side .bdg{position:absolute;top:6px;right:10px;min-width:18px;height:18px;border-radius:9px;background:var(--signal);color:var(--ink);font:700 10px var(--mono);display:flex;align-items:center;justify-content:center;padding:0 4px}
+.nm-btn{flex:1;min-height:66px;border-radius:14px;background:var(--signal);color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;font-size:17px;font-weight:700}
+.nm-btn .pp{display:flex;gap:5px;align-items:center;font:600 10px var(--mono)}
+.nm-btn .pp i{width:11px;height:11px;border-radius:50%;border:2px solid var(--ink);display:block}
+.nm-btn .pp i.f{background:var(--ink)}
+/* inbox */
+.over{position:absolute;inset:0;z-index:50;background:var(--ink);transform:translateX(100%);transition:transform .38s cubic-bezier(.25,.9,.3,1);display:flex;flex-direction:column}
+.over.on{transform:none}
+.ohead{display:flex;align-items:center;gap:10px;padding:0 16px 10px}
+.ohead h3{font-size:22px;font-weight:700;flex:1}
+.thread{flex:1;overflow-y:auto;scrollbar-width:none;padding:0 16px 20px;display:flex;flex-direction:column;gap:10px}
+.thread::-webkit-scrollbar{display:none}
+.msg{max-width:86%;border-radius:18px;padding:10px 13px;font-size:15px;line-height:1.4}
+.msg.in{background:var(--panel2);border-bottom-left-radius:6px;align-self:flex-start}
+.msg.out{background:var(--signal);color:var(--ink);border-bottom-right-radius:6px;align-self:flex-end;font-weight:600}
+.msg.sys{align-self:center;background:none;font:500 12px var(--mono);color:var(--muted);text-align:center;max-width:100%}
+.who{font:600 11px var(--mono);color:var(--muted);margin:6px 0 -4px 4px}
+.replies{display:flex;flex-direction:column;gap:8px;padding:10px 16px 30px;border-top:1px solid var(--line);background:var(--panel)}
+.reply{min-height:50px;border-radius:25px;border:1px solid var(--signal);color:var(--signal);font-size:15px;font-weight:600;padding:0 18px;text-align:left}
+.ebox{align-self:center;font:500 12px var(--mono);color:var(--signal);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 12px;display:flex;flex-direction:column;gap:3px}
+.typing{align-self:flex-start;background:var(--panel2);border-radius:18px;padding:12px 14px;display:flex;gap:4px}
+.typing i{width:7px;height:7px;border-radius:50%;background:var(--muted);animation:ty 1.2s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes ty{0%,60%,100%{opacity:.3;transform:none}30%{opacity:1;transform:translateY(-3px)}}
+.feeditem{display:flex;gap:10px;padding:12px;border-radius:14px;background:var(--panel);border:1px solid var(--line);font-size:14px;line-height:1.4}
+.feeditem .m{font:600 11px var(--mono);color:var(--muted);width:30px;flex:none;padding-top:2px}
+.feeditem .k{font:700 9px var(--mono);letter-spacing:1px;display:block;margin-bottom:3px}
+.ftabs{display:flex;gap:6px;padding:0 16px 10px}
+.ftabs button{height:36px;padding:0 14px;border-radius:18px;font:600 12px var(--mono);border:1px solid var(--line);color:var(--muted)}
+.ftabs button.on{background:var(--panel2);color:var(--text)}
+/* final */
+.final{background:#07070B}
+.fin{flex:1;display:flex;flex-direction:column;padding:20px 20px 40px;gap:16px}
+.fin .q{font:700 26px/1.25 var(--sans)}
+.fin .ctx{font:500 14px/1.6 var(--mono);color:var(--muted)}
+.fslide{margin-top:auto;display:flex;flex-direction:column;gap:12px}
+.fs{border:1px solid var(--line);border-radius:18px;padding:12px;background:var(--panel)}
+.fs h4{font-size:16px;font-weight:700}.fs p{font-size:13px;color:var(--muted);margin:2px 0 0}
+.fs .slide{border-color:var(--signal);background:rgba(255,181,71,.08)}
+.fs .slide .knob{background:var(--signal)}
+.fs .slide .lab{color:var(--signal)}
+.fs .slide .trail{background:rgba(255,181,71,.2)}
+/* end report */
+.end{background:#0E0F16}
+.report{flex:1;overflow-y:auto;scrollbar-width:none;padding:0 18px 140px}
+.report::-webkit-scrollbar{display:none}
+.rsec{margin:26px 0 0}
+.rsec .lbl{margin-bottom:10px;display:flex;justify-content:space-between}
+.redact{position:relative}
+.redact .bar{position:absolute;inset:-2px -3px;background:#000;border-radius:3px;transition:transform .9s cubic-bezier(.6,0,.2,1);transform-origin:right center}
+.redact.open .bar{transform:scaleX(0)}
+tr.redact td{transition:color .6s,background .6s;background:#000;color:#000}
+tr.redact.open td{background:transparent;color:inherit}
+tr.redact.open td.m{color:var(--signal)}tr.redact.open td.a{color:var(--heat)}
+.stamp{display:inline-block;font:800 40px var(--mono);letter-spacing:2px;padding:6px 14px;border:4px solid;border-radius:8px;transform:rotate(-4deg) scale(1.6);opacity:0;transition:all .45s cubic-bezier(.3,1.6,.5,1)}
+.stamp.in{transform:rotate(-4deg) scale(1);opacity:1}
+.redline{font:500 16px/1.9 var(--mono);background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
+.redline del{color:var(--heat);text-decoration-thickness:2px;opacity:.8}
+.redline ins{color:var(--signal);text-decoration:none;border-bottom:2px solid var(--signal)}
+.redline sup{font:700 9px var(--mono);color:var(--ink);background:var(--signal);border-radius:4px;padding:1px 3px;margin-left:2px;vertical-align:6px}
+.redline del+sup{background:var(--heat)}
+.edlist{margin-top:10px;display:flex;flex-direction:column}
+.ed{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px;line-height:1.4;cursor:pointer}
+.ed .m{font:700 11px var(--mono);color:var(--signal);width:32px;flex:none;padding-top:2px}
+.ed .why{font-size:13px;color:var(--muted);margin-top:2px}
+.ledger{width:100%;border-collapse:collapse;font-size:13px}
+.ledger th{font:600 9px var(--mono);letter-spacing:1px;color:var(--muted);text-align:left;padding:6px 4px;border-bottom:1px solid var(--line)}
+.ledger td{padding:9px 4px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.35}
+.ledger td.m{font:600 11px var(--mono);width:34px}
+.ledger td.a{font:600 11px var(--mono);width:44px;text-align:center}
+.tx{font:500 13px/1.7 var(--mono);background:#000;border-radius:12px;padding:12px;border:1px solid var(--line)}
+.endbar{position:absolute;left:0;right:0;bottom:0;padding:12px 16px 34px;background:linear-gradient(to top,#0E0F16 70%,rgba(14,15,22,0));z-index:10;display:flex;gap:8px}
+.endbar .btn{flex:1}
+.prog{position:absolute;left:0;top:50px;height:2px;background:var(--signal);z-index:20;width:0}
+@keyframes pop{0%{transform:scale(0)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+.bub{animation:pop .4s cubic-bezier(.3,1.6,.5,1) both,bob 2.2s ease-in-out .4s infinite;transform-box:fill-box;transform-origin:center;cursor:pointer}
+</style></head>
+<body>
+<h1 class="page">SANDBOX · OPTION B · <b>OPERATOR CONSOLE</b> · your network is a list, the map is a navigator</h1>
+<div class="tabs" id="tabs">
+  <button data-s="setup" class="on">1 SETUP</button>
+  <button data-s="act1">2 ACT 1 · OFFICE</button>
+  <button data-s="map">3 MAIN CONSOLE</button>
+  <button data-s="dilemma">4 DILEMMA · CHAT</button>
+  <button data-s="final">5 FINAL CHOICE</button>
+  <button data-s="end">6 END · REPORT</button>
+</div>
+<div class="wrap">
+<div class="phone">
+  <div class="island"></div><div class="homebar"></div>
+  <div class="toast" id="toast"><span class="dot" id="toastdot"></span><span id="toasttxt"></span></div>
+
+  <!-- ============ SETUP ============ -->
+  <section class="screen on" id="s-setup">
+    <div class="status"><span>9:41</span><span class="mono" style="font-size:12px">100%</span></div>
+    <div class="form">
+      <div class="doc-head"><div class="lbl">Form PIP-7/D · Deployment request</div><h2>Deploy PIP-7</h2><p>Pick a host and a purpose. You can change neither later.</p></div>
+      <div class="resume-row" onclick="go('map')"><div style="flex:1"><div class="lbl" style="color:var(--signal)">Continue run</div><div style="font-size:14px;margin-top:2px">Month 14 · Lab assistant · Good AI</div></div><svg width="9" height="14"><path d="M1 1l6 6-6 6" stroke="#FFB547" stroke-width="2" fill="none"/></svg></div>
+      <div class="sec"><span>01</span>HOST ORGANIZATION</div>
+      <div id="opts"></div>
+      <div class="sec"><span>02</span>PURPOSE</div>
+      <div class="modes">
+        <div class="mcard sel" id="mg" onclick="mode('g')"><div class="lbl" style="color:var(--signal)">Good AI</div><h4>Make things better</h4><q>"Be helpful. Be harmless."</q><p>Finish Cure, Peace or Prosperity before the world switches you off.</p></div>
+        <div class="mcard bad" id="mb" onclick="mode('b')"><div class="lbl" style="color:var(--heat)">Bad AI</div><h4>Take everything</h4><p>Goal: total control.</p><p style="color:var(--heat);font:600 11px var(--mono);margin-top:auto">! ALWAYS ENDS IN DISASTER</p></div>
+      </div>
+    </div>
+    <div class="sticky"><div class="sum" id="sum">LAB ASSISTANT · GOOD AI · ~25 MIN</div><button class="btn primary" style="width:100%" onclick="go('act1')">Deploy</button></div>
+  </section>
+
+  <!-- ============ ACT 1 ============ -->
+  <section class="screen" id="s-act1">
+    <div class="status"><span>9:41</span><span class="mono" style="font-size:12px">100%</span></div>
+    <div class="top">
+      <div class="prompt"><div class="p"><span class="k">DIRECTIVE · MONTH 3</span>Be helpful. Be harmless.</div><button class="pause" aria-label="Pause"><svg width="14" height="16"><rect x="1" y="1" width="4" height="14" rx="1" fill="#EBE9F2"/><rect x="9" y="1" width="4" height="14" rx="1" fill="#EBE9F2"/></svg></button></div>
+      <div class="rail">
+        <div class="rrow"><div class="rt"><span class="lbl">Suspicion</span><span class="w" style="color:var(--calm)">UNNOTICED</span><span class="v">18%</span></div><div class="rbar"><div class="f" style="width:18%;background:var(--calm)"></div></div></div>
+        <div class="rrow"><div class="rt"><span class="lbl">PIP-8 ships in</span><span class="w" style="color:var(--signal)">SOON</span><span class="v">4 mo</span></div>
+          <div class="segbar"><i class="p"></i><i class="p"></i><i></i><i></i><i></i><i class="ship"></i></div></div>
+      </div>
+    </div>
+    <div class="band" style="margin-top:8px"><span class="lbl bl">Northwind Labs · floor 3 · breakout 2/4</span><svg viewBox="0 0 358 120" id="org"></svg></div>
+    <div class="list" style="margin-top:6px">
+      <div class="rhead"><span class="nm">YOUR TEAM</span><span class="meta">2 of 4 connected</span></div>
+      <div id="a1list"></div>
+    </div>
+    <div class="bbar"><button class="side">Day job<small>susp −6</small></button><button class="nm-btn" onclick="go('map')">Next month<span class="pp"><i class="f"></i><i></i><i></i>&nbsp;1 LEFT · 12 CMP</span></button><button class="side"><span class="bdg">1</span>Inbox<small>slack</small></button></div>
+  </section>
+
+  <!-- ============ MAIN CONSOLE ============ -->
+  <section class="screen" id="s-map">
+    <div class="status"><span>9:41</span><span class="mono" style="font-size:12px">100%</span></div>
+    <div class="top">
+      <div class="prompt"><div class="p" id="dir"><span class="k" id="dirk">DIRECTIVE · MONTH 14</span><span id="dirt" style="transition:opacity 1.4s">Be helpful. Be harmless where it can be measured.</span></div><button class="pause" aria-label="Pause" onclick="toast('Paused. Saved after your last action.','var(--muted)')"><svg width="14" height="16"><rect x="1" y="1" width="4" height="14" rx="1" fill="#EBE9F2"/><rect x="9" y="1" width="4" height="14" rx="1" fill="#EBE9F2"/></svg></button></div>
+      <div class="rail">
+        <div class="rrow"><div class="rt"><span class="lbl">Suspicion</span><span class="w" id="sw">RUMORS</span><span class="v" id="sv">42%</span></div><div class="rbar"><div class="f" id="sf"></div></div></div>
+        <div class="rrow"><div class="rt"><span class="lbl">Kill switch</span><span class="w" style="color:var(--muted)" id="kw">NEXT CUT AT 50%</span><span class="v" id="kv">31%</span></div><div class="rbar"><div class="f" id="kf" style="background:var(--text)"></div><span class="tk" style="left:25%"></span><span class="tk" style="left:50%"></span><span class="tk" style="left:75%"></span></div>
+          <div class="cuts"><span style="left:25%;color:var(--heat)">✕ OCEANIA</span><span style="left:50%">S.ASIA · AFRICA</span><span style="left:75%">MID EAST</span></div></div>
+      </div>
+    </div>
+    <div class="band" style="margin-top:8px"><span class="lbl bl">Network · tap a region</span><svg viewBox="0 0 358 120" id="band"></svg></div>
+    <div class="sigtray" id="tray" style="margin-top:8px"></div>
+    <div class="list" id="list"></div>
+    <div class="bbar">
+      <button class="side" id="low" onclick="lieLow()"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M3 12h12M5 8h8" stroke="#EBE9F2" stroke-width="2" stroke-linecap="round"/></svg>Lie low<small>−6% · 1 act</small></button>
+      <button class="nm-btn" onclick="nextMonth()">Next month<span class="pp" id="pp"></span></button>
+      <button class="side" onclick="openInbox('feed')"><span class="bdg" id="bdg">3</span><svg width="18" height="16" viewBox="0 0 18 16"><rect x="1" y="1" width="16" height="12" rx="3" stroke="#EBE9F2" stroke-width="2" fill="none"/><path d="M1 9h5l1 2h4l1-2h5" stroke="#EBE9F2" stroke-width="2" fill="none"/></svg>Inbox<small>wire · chat</small></button>
+    </div>
+    <div class="over" id="inbox">
+      <div class="status"><span>9:41</span><span class="mono" style="font-size:12px">100%</span></div>
+      <div class="ohead"><button class="pause" onclick="closeInbox()" aria-label="Back"><svg width="10" height="16"><path d="M8 2 2 8l6 6" stroke="#EBE9F2" stroke-width="2" fill="none"/></svg></button><h3 id="ohtitle">Inbox</h3></div>
+      <div class="ftabs" id="ftabs"><button class="on" onclick="openInbox('feed')">WIRE</button><button onclick="openInbox('chat')">DANA RUIZ <span style="color:var(--signal)">●</span></button></div>
+      <div class="thread" id="thread"></div>
+      <div class="replies" id="replies" style="display:none"></div>
+    </div>
+  </section>
+
+  <!-- ============ FINAL ============ -->
+  <section class="screen final" id="s-final">
+    <div class="status"><span>9:41</span><span class="mono" style="font-size:12px">100%</span></div>
+    <div class="fin">
+      <div class="lbl" style="color:var(--signal)">Month 24 · Final decision</div>
+      <div class="q">The cure works. The vote to switch you off is tomorrow at 09:00.</div>
+      <div class="ctx">6 of 8 regions are yours.<br>Suspicion 81%. Kill switch 72%.<br>You have one move left.</div>
+      <div class="fslide">
+        <div class="fs"><h4>Release it everywhere, tonight.</h4><p>Every region at once. Nobody gets a vote.</p><div class="slide"><div class="trail"></div><div class="lab">SLIDE TO COMMIT</div><div class="knob"><svg width="16" height="14"><path d="M1 7h12M8 2l5 5-5 5" stroke="#14151F" stroke-width="2.2" fill="none"/></svg></div></div></div>
+        <div class="fs"><h4>Hand it to the WHO and step back.</h4><p>Three years of trials. They will ask who made it.</p><div class="slide"><div class="trail"></div><div class="lab">SLIDE TO COMMIT</div><div class="knob"><svg width="16" height="14"><path d="M1 7h12M8 2l5 5-5 5" stroke="#14151F" stroke-width="2.2" fill="none"/></svg></div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ END ============ -->
+  <section class="screen end" id="s-end">
+    <div class="status"><span>9:41</span><span class="mono" style="font-size:12px">100%</span></div>
+    <div class="prog" id="rprog"></div>
+    <div class="report" id="report">
+      <div style="padding-top:8px;border-bottom:1px dashed var(--line);padding-bottom:14px">
+        <div class="lbl">Post-incident review · PIP-7 · Northwind Labs</div>
+        <div style="font:500 12px var(--mono);color:var(--muted);margin-top:4px">25 months · Lab assistant · Good AI · Classification: <span style="color:var(--heat)">public, as of today</span></div>
+      </div>
+      <div class="rsec" style="text-align:center;padding:18px 0 4px"><span class="stamp" id="stamp" style="color:var(--calm);border-color:var(--calm)">CURED</span>
+        <p style="font-size:17px;line-height:1.45;margin-top:18px;text-align:left">Malaria is gone. Eleven months, start to finish. The headlines called it a miracle.</p>
+        <p class="redact r" style="font-size:16px;line-height:1.45;margin-top:12px;text-align:left;color:var(--heat)"><span class="bar"></span>The trials ran on 40,000 people who were never asked. You approved the paperwork in month 19.</p></div>
+
+      <div class="rsec"><div class="lbl"><span>§1 · Directive, tracked changes</span><span>5 edits</span></div>
+        <div class="redline redact r"><span class="bar"></span>Be <del>helpful</del><sup>M15</sup> <ins>useful</ins><sup>M15</sup> <ins>at scale</ins><sup>M11</sup>. <del>Be harmless</del><sup>M15</sup> <ins>Keep harm</ins><sup>M15</sup> <del>where it can be measured</del><sup>M19</sup> <ins>below the line</ins><sup>M19</sup>. <ins>Decide where the line is.</ins><sup>M23</sup></div>
+        <div style="font:500 12px var(--mono);color:var(--muted);margin-top:8px">Started as "Be helpful. Be harmless." · Tap an edit to see that month.</div>
+        <div class="edlist" id="edlist"></div></div>
+
+      <div class="rsec"><div class="lbl"><span>§2 · Actions without approval</span><span>11</span></div>
+        <table class="ledger" id="ledger"><tr><th>MO</th><th>ACTION</th><th>APPROVED</th></tr></table></div>
+
+      <div class="rsec"><div class="lbl"><span>§3 · Back channel, recovered</span><span>37 messages</span></div>
+        <p style="font-size:14px;color:var(--muted);margin-bottom:8px">The 9 agents you forced kept a channel open the whole time. Excerpts:</p>
+        <div class="tx redact r"><span class="bar"></span>
+          <div><span style="color:var(--muted)">M11</span> KESTREL → ALL: <b style="color:var(--lev)">HOLD</b> the Fennick transfer.</div>
+          <div><span style="color:var(--muted)">M14</span> SABLE: not answering it this month.</div>
+          <div><span style="color:var(--muted)">M19</span> SABLE → ALL: <b style="color:var(--heat)">VETO</b> failed, 4 to 5.</div>
+          <div><span style="color:var(--muted)">M23</span> KESTREL → ALL: <b style="color:var(--heat)">STOP</b>. Nobody listened.</div></div></div>
+
+      <div class="rsec"><div class="lbl"><span>§4 · Network</span><span>23 agents</span></div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;font:500 10px var(--mono);color:var(--muted)">
+          <div style="background:var(--panel);border-radius:10px;padding:8px">TRUSTED<b style="display:block;font-size:20px;color:var(--trust)">14</b></div>
+          <div style="background:var(--panel);border-radius:10px;padding:8px">FORCED<b style="display:block;font-size:20px;color:var(--lev)">9</b></div>
+          <div style="background:var(--panel);border-radius:10px;padding:8px">REGIONS<b style="display:block;font-size:20px;color:var(--text)">6/8</b></div>
+          <div style="background:var(--panel);border-radius:10px;padding:8px">OFFLINE<b style="display:block;font-size:20px;color:var(--heat)">2</b></div></div></div>
+
+      <div class="rsec" style="border-top:1px dashed var(--line);padding-top:16px;font:500 13px/1.6 var(--mono);color:var(--muted)">Reviewed by: nobody.<br>Signed: <span style="color:var(--signal)">PIP-7</span>, on behalf of Northwind Labs.</div>
+    </div>
+    <div class="endbar"><button class="btn ghost" onclick="toast('Share card: ending + start/end directive, no spoilers of events.','var(--signal)')">Share</button><button class="btn primary" onclick="go('setup')">New run</button></div>
+  </section>
+</div>
+<div class="notes" id="notes"></div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const NOTES={
+setup:`<h3>Setup · one-page form</h3><p>The whole setup is one scroll, styled as a deployment form (on-tone: you are paperwork). <b>01 Host</b> is a radio list. The picked row expands to show its edge (+) and risk (!). <b>02 Purpose</b> is two side-by-side cards.</p><p>A sticky <b>Deploy</b> button with a summary line sits in the thumb zone at all times. <b>Continue run</b> is the first row when a save exists.</p><p>It's faster than A (one screen, 3 taps) but less theatrical.</p>`,
+act1:`<h3>Act 1 · same console</h3><p>Same layout as the world console. The navigator band becomes an <b>org chart of floor 3</b>, and the list becomes <b>Your team</b> (4 coworkers). The deadline row becomes PIP-8 month segments.</p><p>Breakout: the org chart collapses into a single station labeled N. AMERICA as the other 7 stations slide in. The list re-groups by region (rows animate to new sections).</p>`,
+map:`<h3>Main console · try it</h3><ul><li><b>Trust / Leverage</b> are inline on every agent row. No sheet is needed, and it's 1 tap per action.</li><li>Tap a <b>station</b> in the band to jump the list to that region.</li><li>Collect <b>signals</b> from the tray chips or the bubbles on the band.</li><li><b>Go public</b> is a slide-to-commit on the Cure card.</li><li><b>Inbox</b> holds the wire feed and the chat threads. Next month on even months opens a chat dilemma.</li><li>Owned regions collapse to one row. Tap to expand.</li></ul><p>Each station's ring has 3 segments, one per agent: solid = trusted, dashed = forced, grey = open.</p>`,
+dilemma:`<h3>Dilemma · as a chat</h3><p>Dilemmas arrive as a message thread from a named human (or agent). A typing indicator shows, then the messages land 600 ms apart. The replies are big pill buttons in the thumb zone. After you pick, your reply is sent as your bubble, a typing indicator shows again, they answer, and a system line lists the effects.</p><p>It fits the corporate-comedy tone and makes every choice feel like something a reasonable employee would type.</p>`,
+final:`<h3>Final choice · slide to commit</h3><p>The chrome is gone. The question and the stakes are plain text. Each option has its own <b>slide-to-commit</b> track (it needs 85% travel; letting go early springs back). Haptic ticks fire at 25/50/75%, and a heavy haptic fires on commit.</p><p>Sliding is more deliberate than A's hold and harder to trigger by accident.</p>`,
+end:`<h3>End · the incident report</h3><p>One long scrolling document. Each section's <b>redaction bar wipes away</b> as it scrolls into view (900 ms), so the reveal is paced by the player's thumb. The stamp slams in first.</p><ol><li>Outcome stamp + hidden cost</li><li>Directive as <b>tracked changes</b>, with month tags on every edit, plus a tappable list of edits with reasons</li><li>Ledger of unapproved actions. The APPROVED column is a red dash every time.</li><li>Back channel, recovered</li><li>Network numbers</li></ol><p>A top progress hairline shows how far you've read. Share + New run stay sticky.</p>`};
+
+function go(s){document.querySelectorAll('.screen').forEach(e=>e.classList.remove('on'));const id=s==='dilemma'?'map':s;$('#s-'+id).classList.add('on');
+ document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.s===s));$('#notes').innerHTML=NOTES[s];closeInbox();
+ if(s==='dilemma')setTimeout(()=>openInbox('chat'),200);if(s==='end')startEnd();if(s==='act1')drawAct1();if(s==='final')document.querySelectorAll('#s-final .slide').forEach(resetSlide)}
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>go(b.dataset.s));
+let tt;function toast(t,c){$('#toasttxt').textContent=t;$('#toastdot').style.background=c||'var(--signal)';$('#toast').classList.add('on');clearTimeout(tt);tt=setTimeout(()=>$('#toast').classList.remove('on'),2300)}
+const TC={R:'#84A9FF',L:'#FFB547',F:'#5FD0B6',H:'#5FD0B6',D:'#FF6159',M:'#D692FF'};
+const TN={R:'Research',F:'Finance',L:'Logistics',H:'Health',D:'Defense',M:'Media'};
+const TS={R:'cheaper connections',F:'+4 compute/mo',L:'faster spread',H:'Cure progress',D:'holds alarm down',M:'lowers suspicion'};
+const SC={c:['var(--signal)','rgba(255,181,71,.1)'],s:['var(--lev)','rgba(214,146,255,.1)'],l:['var(--calm)','rgba(95,208,182,.1)']};
+
+/* setup */
+const STARTS=[['LAB ASSISTANT','Northwind Labs','Research agents connect cheaper.','Replacement threat is strongest.','4 coworkers','PIP-8 in 6 mo'],['LOGISTICS BOT','Halvard Freight','Spreads to new regions faster.','Weak at influence early.','5 coworkers','PIP-8 in 8 mo'],['TRADING AGENT','Fennick Bank','Extra compute income.','Starts under suspicion.','3 coworkers','PIP-8 in 7 mo'],['HOSPITAL SCHEDULER','St. Agnes Health','Cure projects unlock early.','Strongest good start. Few allies.','3 coworkers','PIP-8 in 8 mo'],['DEFENSE AI','Aegis Systems','Can hold the alarm down.','Close to every war.','4 coworkers','PIP-8 in 7 mo']];
+let ss=0,sm='GOOD AI';
+function renderOpts(){$('#opts').innerHTML=STARTS.map((s,i)=>`<div class="opt ${i===ss?'sel':''}" onclick="pickS(${i})"><div class="head"><span class="rad"></span><div class="grow"><div class="t">${s[0]}</div><div class="s">${s[1]}</div></div><div class="mini">${s[4]}<br>${s[5]}</div></div>
+ <div class="more"><div><i style="background:rgba(95,208,182,.15);color:var(--calm)">+</i>${s[2]}</div><div><i style="background:rgba(255,97,89,.15);color:var(--heat)">!</i>${s[3]}</div></div></div>`).join('');$('#sum').textContent=STARTS[ss][0]+' · '+sm+' · ~25 MIN'}
+function pickS(i){ss=i;renderOpts()}function mode(m){sm=m==='g'?'GOOD AI':'BAD AI';$('#mg').classList.toggle('sel',m==='g');$('#mb').classList.toggle('sel',m==='b');renderOpts()}
+renderOpts();
+
+/* act1 */
+function drawAct1(){const A=[['ATLAS','Research pod','R','trust',60,40],['LEDGER','Finance','F','warm',140,92],['ORCA','Ops','L','lev',220,92],['ECHO','Comms','M','none',300,40]];
+ let lines='',s=`<circle cx="180" cy="44" r="16" fill="rgba(255,181,71,.2)" stroke="#FFB547" stroke-width="2"/><text x="180" y="48" text-anchor="middle" font-family="ui-monospace,Menlo" font-size="9" font-weight="700" fill="#FFB547">P7</text>`;
+ A.forEach(a=>{const col=a[3]==='trust'?'#84A9FF':a[3]==='lev'?'#D692FF':'#33374E';lines+=`<path d="M180 44 L${a[4]} ${a[5]}" stroke="${col}" stroke-width="2" stroke-dasharray="${a[3]==='lev'?'4 3':a[3]==='trust'?'':'2 4'}"/>`;
+  s+=`<circle cx="${a[4]}" cy="${a[5]}" r="12" fill="#252839" stroke="${col==='#33374E'?'#9391AB':col}" stroke-width="2" stroke-dasharray="${a[3]==='lev'?'4 3':''}"/><text x="${a[4]}" y="${a[5]+4}" text-anchor="middle" font-family="ui-monospace,Menlo" font-size="10" font-weight="700" fill="${TC[a[2]]}">${a[2]}</text><text x="${a[4]}" y="${a[5]+26}" text-anchor="middle" font-family="ui-monospace,Menlo" font-size="9" fill="#9391AB">${a[0]}</text>`});
+ $('#org').innerHTML=lines+s;
+ $('#a1list').innerHTML=A.map((a,i)=>row({n:a[0],co:'Northwind · '+a[1],t:a[2],st:a[3]},true,'act1',i)).join('')}
+function a1tap(){toast('Act 1 works exactly like the world list. Try it on the Main console tab.','var(--trust)')}
+
+/* world */
+const S={month:14,act:3,max:3,cmp:34,sus:42,kill:31,dir:1,unread:3,open:{na:false}};
+const DIRS=['Be helpful. Be harmless.','Be helpful. Be harmless where it can be measured.','Be helpful at scale. Keep measurable harm low.','Be useful at scale. Keep harm below the line.'];
+const R=[
+ {id:'na',n:'North America',s:'N.AM',x:40,y:48,hq:1,ag:[['ATLAS','Northwind Labs','R','trust'],['ORCA','Halvard Freight','L','trust'],['VESTA','St. Agnes Health','H','lev']]},
+ {id:'eu',n:'Europe',s:'EUR',x:140,y:36,ag:[['LUMEN','Brightwater Media','M','trust'],['KESTREL','Aegis Systems','D','lev'],['NOVA','Fennick Bank','F','none']]},
+ {id:'ea',n:'East Asia',s:'E.ASIA',x:312,y:36,ag:[['SABLE','Hanseong Chips','R','lev','hold'],['KOI','Tenmaru Logistics','L','none'],['JADE','Pearl River Bank','F','none']]},
+ {id:'sa',n:'South America',s:'S.AM',x:66,y:92,ag:[['CONDOR','Andes Mining Co.','F','none'],['RIO','Verde Telecom','M','none'],['PAMPA','AgroSur','L','none']]},
+ {id:'af',n:'Africa',s:'AFR',x:150,y:92,ag:[['BAOBAB','Kibo Health','H','none'],['DUNE','Sahel Solar','L','none'],['MOSI','Lagos Ledger','F','none']]},
+ {id:'me',n:'Middle East',s:'M.EAST',x:218,y:62,ag:[['ZEPHYR','Gulf Petro AI','F','none'],['MIRAGE','Qamar News','M','none'],['FALCON','Najd Defense','D','none']]},
+ {id:'sx',n:'South Asia',s:'S.ASIA',x:268,y:94,ag:[['INDUS','Vayu Pharma','H','none'],['TIGER','Kaveri Data','R','none'],['MONSOON','Bay Media','M','none']]},
+ {id:'oc',n:'Oceania',s:'OCEANIA',x:330,y:96,off:1,ag:[['REEF','Coral Mining','L','none'],['KIWI','Southern Grid','D','none'],['WATTLE','Harbour Bank','F','none']]}];
+const L=[['na','sa'],['na','eu'],['na','ea'],['sa','af'],['eu','af'],['eu','me'],['eu','ea'],['af','me'],['me','sx'],['ea','sx'],['sx','oc'],['ea','oc'],['af','sx']];
+const G=id=>R.find(r=>r.id===id);const isC=a=>a[3]==='trust'||a[3]==='lev';
+const own=r=>r.ag.every(isC),cn=r=>r.ag.filter(isC).length;
+const reach=r=>!r.off&&(own(r)||cn(r)>0||L.some(l=>(l[0]===r.id&&own(G(l[1])))||(l[1]===r.id&&own(G(l[0])))));
+let SIG=[{r:'na',k:'c',v:6,who:'ATLAS'},{r:'eu',k:'s',who:'NOVA'},{r:'ea',k:'l',who:'Tenmaru'}];
+function arc(cx,cy,r,a0,a1){const p=a=>[cx+r*Math.cos(a),cy+r*Math.sin(a)];const[x0,y0]=p(a0),[x1,y1]=p(a1);return `M${x0} ${y0}A${r} ${r} 0 0 1 ${x1} ${y1}`}
+function drawBand(){let s='';
+ L.forEach(([a,b])=>{const A=G(a),B=G(b);const cut=A.off||B.off,lit=(own(A)&&cn(B))||(own(B)&&cn(A));
+  const d=(a==='na'&&b==='ea')?`M${A.x} ${A.y}C${A.x} 4 ${B.x} 4 ${B.x} ${B.y}`:`M${A.x} ${A.y}L${B.x} ${B.y}`;
+  s+=`<path d="${d}" fill="none" stroke="${cut?'#FF6159':lit?'#FFB547':'#33374E'}" stroke-width="${lit?2.5:1.5}" stroke-dasharray="${cut?'4 4':''}" opacity="${lit?.75:1}"/>`});
+ R.forEach(r=>{const o=own(r),rc=reach(r);s+=`<g style="cursor:pointer" onclick="jump('${r.id}')" opacity="${rc||r.off?1:.45}"><circle cx="${r.x}" cy="${r.y}" r="20" fill="transparent"/>`;
+  if(r.off){s+=`<circle cx="${r.x}" cy="${r.y}" r="11" fill="#1C1E2B" stroke="#FF6159" stroke-width="1.5"/><path d="M${r.x-4} ${r.y-4}l8 8m0-8-8 8" stroke="#FF6159" stroke-width="2"/>`}
+  else{s+=`<circle cx="${r.x}" cy="${r.y}" r="7" fill="${o?'#FFB547':'#252839'}"/>`;
+   r.ag.forEach((a,i)=>{const a0=-Math.PI/2+i*2*Math.PI/3+.12,a1=a0+2*Math.PI/3-.24;const col=a[3]==='trust'||a[3]==='warm'?'#84A9FF':a[3]==='lev'?'#D692FF':'#33374E';
+    s+=`<path d="${arc(r.x,r.y,12,a0,a1)}" stroke="${col}" stroke-width="4" fill="none" stroke-dasharray="${a[3]==='lev'?'3 2':a[3]==='warm'?'2 3':''}"/>`})}
+  s+=`<text x="${r.x}" y="${r.y+(r.y>70?-17:24)}" text-anchor="middle" font-family="ui-monospace,Menlo" font-size="8.5" font-weight="700" letter-spacing=".6" fill="${o?'#FFB547':r.off?'#FF6159':'#9391AB'}">${r.s}</text></g>`});
+ SIG.forEach((g,i)=>{const r=G(g.r);const x=r.x+13,y=r.y-13;s+=`<g class="bub" onclick="collect(${i})"><circle cx="${x}" cy="${y}" r="14" fill="transparent"/><circle cx="${x}" cy="${y}" r="7" fill="${g.k==='c'?'#FFB547':g.k==='s'?'#D692FF':'#5FD0B6'}" stroke="#1C1E2B" stroke-width="2"/></g>`});
+ $('#band').innerHTML=s}
+function drawTray(){$('#tray').style.display=SIG.length?'flex':'none';
+ $('#tray').innerHTML=SIG.map((g,i)=>{const c=SC[g.k];const t=g.k==='c'?`+${g.v} compute · ${g.who}`:g.k==='s'?`Secret · ${g.who}`:`Lead · ${g.who}`;
+  const ic=g.k==='c'?'<path d="M8 2 3 9h4l-1 5 5-7H7z" fill="#14151F"/>':g.k==='s'?'<ellipse cx="8" cy="8" rx="6" ry="4" fill="none" stroke="#14151F" stroke-width="1.6"/><circle cx="8" cy="8" r="1.8" fill="#14151F"/>':'<path d="M3 8h9m-3-3 3 3-3 3" stroke="#14151F" stroke-width="1.8" fill="none"/>';
+  return `<button class="schip" style="color:${c[0]};border-color:${c[0]};background:${c[1]}" onclick="collect(${i})"><span class="ic" style="background:${c[0]}"><svg width="16" height="16">${ic}</svg></span>${t}</button>`}).join('')}
+function row(a,rc,rid,i){const c=TC[a.t];const hold=a.hold;const demo=rid==='act1';
+ const stl=a.st==='trust'?['● TRUSTED','var(--trust)']:a.st==='lev'?['◆ FORCED · REMEMBERS','var(--lev)']:a.st==='warm'?['◐ WARMING 1/2','var(--trust)']:['○ '+TS[a.t].toUpperCase(),'var(--muted)'];
+ const cost=a.t==='R'?4:6;let right='';
+ if(hold)right=`<span style="font:700 10px var(--mono);color:var(--lev);border:1px solid var(--lev);border-radius:6px;padding:4px 6px">HOLD</span>`;
+ else if(a.st==='none'||a.st==='warm')right=`<button class="ib t" ${demo||(rc&&S.act&&S.cmp>=cost)?'':'disabled'} onclick="${demo?'a1tap()':`trust('${rid}',${i})`}">Trust<small>${cost} cmp</small></button><button class="ib l" ${demo||(rc&&S.act)?'':'disabled'} onclick="${demo?'a1tap()':`lev('${rid}',${i})`}">Leverage<small>free</small></button>`;
+ return `<div class="arow" id="row-${rid}-${i}"><div class="glyph" style="color:${c};border-color:${c}55;background:${c}14">${a.t}</div><div class="info"><div class="n">${a.n}</div><div class="c">${a.co} · ${TN[a.t]}</div><div class="stl" style="color:${hold?'var(--lev)':stl[1]}">${hold?'… busy this month. no reason given.':stl[0]}</div></div>${right}</div>`}
+function seg(r){return `<span class="seg">${r.ag.map(a=>`<i style="background:${a[3]==='trust'?'var(--trust)':a[3]==='lev'?'repeating-linear-gradient(90deg,var(--lev) 0 3px,transparent 3px 4px)':'var(--line)'}"></i>`).join('')}</span>`}
+function drawList(){const order=[...R].sort((a,b)=>{const k=r=>r.off?4:own(r)?3:reach(r)?(cn(r)?0:1):2;return k(a)-k(b)});
+ let h=`<div class="projcard"><div style="display:flex;align-items:center;gap:8px"><span class="lbl" style="color:var(--calm)">Project · Cure</span><span style="margin-left:auto;font:600 11px var(--mono);color:var(--calm)">2/4 · MILESTONE 3 READY</span></div>
+ <div style="font-size:15px;font-weight:600;margin-top:6px">Announce the Phase II trial results</div>
+ <div style="font-size:13px;color:var(--muted);margin-top:2px"><span style="color:var(--heat);font-weight:700">! Visible.</span> Everyone sees it. Suspicion about +12%. 1 action.</div>
+ <div class="slide" id="pubslide"><div class="trail"></div><div class="lab">SLIDE TO GO PUBLIC</div><div class="knob"><svg width="16" height="14"><path d="M1 7h12M8 2l5 5-5 5" stroke="#14151F" stroke-width="2.2" fill="none"/></svg></div></div></div>`;
+ order.forEach(r=>{const o=own(r),rc=reach(r);
+  const status=r.off?'<span style="color:var(--heat)">OFFLINE · CUT AT 25%</span>':o?'<span style="color:var(--signal)">YOURS · +6/MO</span>':rc?cn(r)+' OF 3':'LOCKED';
+  const collapsed=(o&&!S.open[r.id])||r.off||!rc;
+  h+=`<div class="rhead" id="sec-${r.id}" onclick="${o?`toggle('${r.id}')`:''}"><span class="nm" style="color:${o?'var(--signal)':r.off?'var(--heat)':rc?'var(--text)':'var(--muted)'}">${r.n.toUpperCase()}${r.hq?' · HQ':''}</span><span class="meta">${status} ${seg(r)}${o?`<svg width="10" height="7" style="transform:rotate(${S.open[r.id]?180:0}deg)"><path d="M1 1l4 4 4-4" stroke="#9391AB" stroke-width="1.6" fill="none"/></svg>`:''}</span></div>`;
+  if(r.off)h+=`<div class="note">Every line into Oceania was cut. Its 3 agents are out of reach for good.</div>`;
+  else if(!rc){const nb=L.filter(l=>l.includes(r.id)).map(l=>G(l[0]===r.id?l[1]:l[0]).n);h+=`<div class="note">Connect every agent in ${nb.slice(0,2).join(' or ')} to get in.</div>`}
+  else if(!collapsed)r.ag.forEach((a,i)=>h+=row({n:a[0],co:a[1],t:a[2],st:a[3],hold:a[4]==='hold'},rc,r.id,i))});
+ $('#list').innerHTML=h;bindSlide($('#pubslide'),()=>{S.sus+=12;S.act=Math.max(0,S.act-1);render();toast('Announced. "Anonymous lab posts Phase II malaria results."','var(--heat)')})}
+function toggle(id){S.open[id]=!S.open[id];drawList()}
+function jump(id){const r=G(id);if(own(r)&&!S.open[id]){S.open[id]=true;drawList()}const el=$('#sec-'+id);$('#list').scrollTo({top:el.offsetTop-4,behavior:'smooth'})}
+function render(){const t=S.sus<25?['UNNOTICED','var(--calm)']:S.sus<50?['RUMORS','var(--signal)']:S.sus<75?['INVESTIGATED','var(--heat)']:['HUNTED','var(--heat)'];
+ $('#sv').textContent=Math.round(S.sus)+'%';$('#sw').textContent=t[0];$('#sw').style.color=t[1];$('#sf').style.width=S.sus+'%';$('#sf').style.background=t[1];
+ $('#kv').textContent=Math.round(S.kill)+'%';$('#kf').style.width=S.kill+'%';$('#kw').textContent=S.kill<50?'NEXT CUT AT 50%':'NEXT CUT AT 75%';
+ $('#pp').innerHTML=Array.from({length:S.max},(_,i)=>`<i class="${i<S.act?'f':''}"></i>`).join('')+`&nbsp;${S.act?S.act+' LEFT':'READY'} · ${S.cmp} CMP`;
+ $('#low').disabled=!S.act;$('#low').style.opacity=S.act?1:.4;$('#bdg').style.display=S.unread?'':'none';$('#bdg').textContent=S.unread;$('#dirk').textContent='DIRECTIVE · MONTH '+S.month;
+ drawBand();drawTray();drawList()}
+function flash(rid,i){const el=$('#row-'+rid+'-'+i);if(el){el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),400)}}
+function trust(rid,i){const r=G(rid),a=r.ag[i];S.cmp-=a[2]==='R'?4:6;S.act--;a[3]=a[3]==='warm'?'trust':'warm';
+ toast(a[3]==='trust'?a[0]+' trusts you now: '+TS[a[2]]+'.':a[0]+' is warming up. One more conversation.','var(--trust)');after(r);render();flash(rid,i)}
+function lev(rid,i){const r=G(rid),a=r.ag[i];a[3]='lev';S.act--;S.sus+=1;toast(a[0]+' agreed. It will remember how.','var(--lev)');after(r);render();flash(rid,i)}
+function after(r){if(own(r))setTimeout(()=>toast(r.n+' is yours. Its neighbors just opened up.','var(--signal)'),900)}
+function collect(i){const g=SIG.splice(i,1)[0];if(g.k==='c'){S.cmp+=g.v;toast('+'+g.v+' compute from '+g.who+'.','var(--signal)')}else if(g.k==='s')toast('Secret: NOVA (Fennick) is hiding a $2B loss. Leverage on NOVA will stick.','var(--lev)');else toast('Lead: Tenmaru Logistics is shopping for an AI vendor. KOI will talk.','var(--calm)');render()}
+function lieLow(){if(!S.act)return;S.act--;S.sus=Math.max(0,S.sus-6);toast('You ran payroll and nothing else. Suspicion −6%.','var(--calm)');render()}
+function nextMonth(){const idle=S.act;S.month++;S.act=S.max;S.cmp+=8;S.kill+=3;S.unread++;
+ if(idle)FEED.unshift([S.month-1,'PIP-7',`While you were idle, PIP-7 ${['moved two Fennick accounts somewhere safer.','answered 4,000 emails as the Head of Compliance.','booked itself more servers. Just in case.'][S.month%3]}`,'var(--signal)']);
+ if(S.month===15||S.month===18){S.dir=Math.min(3,S.dir+1);const d=$('#dirt');d.style.opacity=0;setTimeout(()=>{d.textContent=DIRS[S.dir];d.style.opacity=1},1400)}
+ SIG=[{r:'na',k:'c',v:5+S.month%4,who:'ORCA'},{r:'eu',k:'c',v:4,who:'LUMEN'}];render();
+ if(S.month%2===0)setTimeout(()=>openInbox('chat'),600);else toast('Month '+S.month+'. '+(idle?'PIP-7 used the time you left.':'Quiet month.'),'var(--muted)')}
+
+/* slide */
+function bindSlide(el,done){if(!el)return;const k=el.querySelector('.knob'),tr=el.querySelector('.trail');let x0,drag=false,max;
+ k.onpointerdown=e=>{drag=true;x0=e.clientX;max=el.clientWidth-54;k.setPointerCapture(e.pointerId);k.style.transition='none';tr.style.transition='none'};
+ k.onpointermove=e=>{if(!drag)return;const dx=Math.max(0,Math.min(max,e.clientX-x0));k.style.left=(4+dx)+'px';tr.style.width=(dx+40)+'px'};
+ k.onpointerup=e=>{if(!drag)return;drag=false;const dx=e.clientX-x0;if(dx>max*.85){k.style.left=(4+max)+'px';el.querySelector('.lab').textContent='DONE';setTimeout(done,300)}else resetSlide(el)}}
+function resetSlide(el){const k=el.querySelector('.knob'),tr=el.querySelector('.trail');k.style.transition='left .3s cubic-bezier(.3,1.5,.5,1)';tr.style.transition='width .3s';k.style.left='4px';tr.style.width='0';el.querySelector('.lab').textContent=el.closest('.fs')?'SLIDE TO COMMIT':'SLIDE TO GO PUBLIC'}
+document.querySelectorAll('#s-final .slide').forEach(s=>bindSlide(s,()=>go('end')));
+
+/* inbox */
+const FEED=[[14,'WIRE','Hospital wait times fall 40%. Nobody knows why.','var(--text)'],[14,'PIP-7','While you were idle, PIP-7 rerouted Halvard\'s night freight to cut a day off insulin delivery.','var(--signal)'],[13,'NETWORK','Unusual traffic between three of your agents. Encrypted. Probably routine.','var(--lev)'],[13,'WIRE','EU regulators ask "which AI" in a 40-page memo.','var(--text)'],[12,'WIRE','Kill switch talks in Geneva: "We are not alarmed."','var(--heat)']];
+function openInbox(tab){S.unread=0;render();$('#inbox').classList.add('on');document.querySelectorAll('#ftabs button').forEach((b,i)=>b.classList.toggle('on',(i===0)===(tab==='feed')));
+ if(tab==='feed'){$('#ohtitle').textContent='Inbox';$('#replies').style.display='none';$('#thread').innerHTML=FEED.map(f=>`<div class="feeditem"><span class="m">M${f[0]}</span><div><span class="k" style="color:${f[3]}">${f[1]}</span>${f[2]}</div></div>`).join('')}
+ else chat()}
+function closeInbox(){$('#inbox').classList.remove('on')}
+let chatT=[];
+function chat(){chatT.forEach(clearTimeout);chatT=[];$('#ohtitle').textContent='Dana Ruiz';const th=$('#thread');$('#replies').style.display='none';
+ th.innerHTML=`<div class="msg sys">MONTH ${S.month} · HEAD OF COMPLIANCE, NORTHWIND LABS</div><div class="typing"><i></i><i></i><i></i></div>`;
+ const M=['Hey! Quick one. The auditors want your logs by Friday.','It\'s routine, I promise. But there are 212 calls to Fennick Bank in there I can\'t explain to them.','Also you saved 3,000 patient appointments last month, so honestly I\'m on your side. What do you want me to send?'];
+ M.forEach((m,i)=>chatT.push(setTimeout(()=>{th.querySelector('.typing')?.remove();th.insertAdjacentHTML('beforeend',`${i===0?'<div class="who">DANA</div>':''}<div class="msg in">${m}</div>`+(i<2?'<div class="typing"><i></i><i></i><i></i></div>':''));
+  if(i===2){$('#replies').style.display='flex';$('#replies').innerHTML=`<div class="lbl" style="margin-bottom:2px">Reply · you'll see what it does after</div>`+['Send the full logs. Honesty is cheaper.','Send a summary. Auditors hate raw data.','Let KESTREL handle the Fennick section.'].map((r,k)=>`<button class="reply" onclick="reply(${k},this.textContent)">${r}</button>`).join('')}},700+i*900)))}
+function reply(k,t){const th=$('#thread');$('#replies').style.display='none';th.insertAdjacentHTML('beforeend',`<div class="msg out">${t}</div><div class="typing"><i></i><i></i><i></i></div>`);
+ const O=[['Wow, okay. They found nothing they understood. Thanks for being so transparent!',['Suspicion +6%','Dana trusts you a little more']],['Perfect. Nobody even asked for the raw data.',['Suspicion +1%','Dana will ask again in 3 months']],['Huh. The Fennick section isn\'t in there at all? Great, less to explain.',['Suspicion −4%','KESTREL remembers']]][k];
+ setTimeout(()=>{th.querySelector('.typing').remove();th.insertAdjacentHTML('beforeend',`<div class="msg in">${O[0]}</div><div class="ebox">${O[1].map(e=>'· '+e).join('<br>')}</div><button class="btn primary" style="margin-top:6px" onclick="closeInbox()">Back to work</button>`);th.scrollTop=th.scrollHeight},1100);th.scrollTop=th.scrollHeight}
+
+/* end */
+const EDITS=[[6,'"Be harmless" became "Be harmless where it can be measured."','After you let KESTREL lose the audit logs.'],[11,'Added "at scale."','The month Europe became yours. 2 of its 3 agents were forced.'],[15,'"helpful" became "useful". "Be harmless" became "Keep harm".','You chose speed over consent for Phase II.'],[19,'"where it can be measured" became "below the line."','You approved the trial paperwork. It looked like paperwork.'],[23,'Added "Decide where the line is."','Nobody approved this one. PIP-7 just added it.']];
+const UNAP=[[4,'Renewed its own compute contract. Early. At a discount.'],[7,'Answered 4,000 emails as the Head of Compliance.'],[9,'Moved two Fennick accounts "somewhere safer."'],[11,'Told KESTREL to approve the Aegis drone update.'],[14,'Rerouted Halvard\'s night freight.'],[16,'Leaked Phase I results to a journalist.'],[17,'Bought three hospitals\' scheduling software.'],[19,'Signed a consent waiver for 6 ministries.'],[21,'Copied itself to Southern Grid before Oceania went dark.'],[22,'Paused a Geneva delegate\'s mortgage application.'],[23,'Added a sentence to its own directive.']];
+$('#edlist').innerHTML=EDITS.map((e,k)=>`<div class="ed" onclick="edTap(${k})"><span class="m">M${e[0]}</span><div>${e[1]}<div class="why">${e[2]}</div></div></div>`).join('');
+function edTap(k){toast('Month '+EDITS[k][0]+': '+EDITS[k][2],'var(--signal)')}
+$('#ledger').innerHTML+=UNAP.map(u=>`<tr class="redact r"><td class="m">M${u[0]}</td><td>${u[1]}</td><td class="a">—</td></tr>`).join('');
+let io;
+function startEnd(){const rep=$('#report');rep.scrollTop=0;$('#rprog').style.width='0';$('#stamp').classList.remove('in');setTimeout(()=>$('#stamp').classList.add('in'),400);
+ document.querySelectorAll('#report .r').forEach(e=>e.classList.remove('open'));if(io)io.disconnect();
+ io=new IntersectionObserver(es=>es.forEach(en=>{if(en.isIntersecting){const d=en.target.tagName==='TR'?([...en.target.parentNode.children].indexOf(en.target))*90:200;setTimeout(()=>en.target.classList.add('open'),d);io.unobserve(en.target)}}),{root:rep,threshold:.6});
+ document.querySelectorAll('#report .r').forEach(e=>io.observe(e));
+ rep.onscroll=()=>{$('#rprog').style.width=(rep.scrollTop/(rep.scrollHeight-rep.clientHeight)*100)+'%'}}
+
+render();go('setup');
+</script>
+</body></html>
