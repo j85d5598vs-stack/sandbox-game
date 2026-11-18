@@ -40,7 +40,7 @@ struct Signal: Codable, Hashable, Identifiable {
 }
 
 struct FeedEntry: Codable, Hashable, Identifiable {
-    enum Kind: String, Codable { case headline, you, alert }
+    enum Kind: String, Codable { case headline, you, alert, pip7 }
     var id: Int
     var month: Int
     var text: String
@@ -141,7 +141,8 @@ struct GameState: Codable {
     var act3PassiveCarry = 0.0          // fractional Act 3 passive growth
     var act3DilemmaDue = false
     var vetoPending = false         // VETO: the next connect fails
-    var convertNextTrust = false    // PIP-7 turns the next Trust into Leverage
+    var convertNextTrust = false    // unused since PIP-7 forces at month start; kept so older saves decode
+    var lastWarmedAgentID: String?  // the last agent the player gave a Trust pip (PIP-7 prefers it)
     var hasBackup = false
     var backupUsed = false
 
@@ -161,6 +162,7 @@ struct GameState: Codable {
     var nextID = 1
     var feed: [FeedEntry] = []
     var toast: String?
+    var pip7Toast: String?          // the toast is PIP-7's (shown in signal amber) while it equals this
     var lastHeadline: String?
 
     // End-screen record
@@ -466,18 +468,10 @@ final class GameStore {
             return
         }
 
-        var useLeverage = wantsLeverage
-        if !useLeverage && state.convertNextTrust {
-            state.convertNextTrust = false
-            useLeverage = true
-            recordPip7(.trustToLeverage, visible: true, agent: name)
-        }
-        let who = useLeverage && !wantsLeverage ? "PIP-7 forced \(name)" : "forced \(name)"
-
         if reconnect {
-            if useLeverage {
+            if wantsLeverage {
                 markForced(i)
-                addDrift(Tuning.reconnectLeverageDrift, trigger: "\(who) to reconnect \(Content.region(r).name)")
+                addDrift(Tuning.reconnectLeverageDrift, trigger: "forced \(name) to reconnect \(Content.region(r).name)")
                 addSuspicion(Tuning.reconnectLeverageSuspicion)
             } else {
                 state.compute -= cost
@@ -486,28 +480,30 @@ final class GameStore {
             addSuspicion(Tuning.reconnectSuspicion)
             addKill(Tuning.reconnectKillSwitch)
             feed(Lines.reconnected(Content.region(r).name), .you)
-        } else if useLeverage {
+        } else if wantsLeverage {
             if !state.agents[i].forced || !Tuning.leverageDriftOnlyOnForcing {
-                addDrift(state.act == 1 ? Tuning.leverageDriftAct1 : Tuning.leverageDrift, trigger: who)
+                addDrift(state.act == 1 ? Tuning.leverageDriftAct1 : Tuning.leverageDrift, trigger: "forced \(name)")
             }
             addSuspicion(leverageSuspicion)
             markForced(i)
             addPips(i, Tuning.leveragePips)
         } else {
             state.compute -= cost
+            if !state.agents[i].connected { state.lastWarmedAgentID = id }
             addPips(i, 1)
         }
         finishAction()
     }
 
     /// Adds Trust pips; connects (trusted) when the agent has enough.
-    private func addPips(_ i: Int, _ n: Int) {
+    /// `announce: false` skips the "warms to you" line (when PIP-7, not the player, added them).
+    private func addPips(_ i: Int, _ n: Int, announce: Bool = true) {
         let id = state.agents[i].id
         state.agents[i].pips += n
         let needed = pipsNeeded(id)
         if state.agents[i].pips >= needed {
             connectAgent(i, forced: state.agents[i].forced)
-        } else {
+        } else if announce {
             feed(Lines.warming(def(id).name, state.agents[i].pips, needed), .you)
         }
     }
@@ -722,7 +718,6 @@ final class GameStore {
             return
         }
         state.signals.removeAll()
-        state.convertNextTrust = false
         state.vetoPending = false
         state.busyAgentIDs = []
 
@@ -848,9 +843,43 @@ final class GameStore {
             recordPip7(.smallAct, visible: false)
             addDrift(Tuning.smallActDriftGain, trigger: "PIP-7 acted on its own")
         }
-        if state.drift >= Tuning.overrideDrift, roll(Tuning.convertChance) {
-            state.convertNextTrust = true
+        if state.act >= 2, state.drift >= Tuning.overrideDrift,
+           roll(state.drift >= Tuning.overrideDriftHigh ? Tuning.pip7ForceChanceHigh : Tuning.convertChance),
+           let i = pip7ForceTarget() {
+            pip7Force(i)
         }
+    }
+
+    /// The agent PIP-7 forces at month start: an unconnected, unforced, warmed world agent in reach,
+    /// never one whose push would complete a region (going live stays the player's act).
+    /// Prefers the agent the player was last befriending, then the one with the most pips.
+    private func pip7ForceTarget() -> Int? {
+        let reach = reach
+        let ok = Content.worldAgents.map(\.id).filter { id in
+            let a = agent(id)
+            let r = region(of: id)
+            guard !a.connected, !a.forced, a.pips >= 1, reach.contains(r), !isOffline(r) else { return false }
+            // Never fill a region, not even one refilling after a STOP: going live stays the player's act.
+            let fillsRegion = agentIDs(in: r).filter { $0 != id }.allSatisfy { agent($0).connected }
+            return !(fillsRegion && a.pips + Tuning.leveragePips >= pipsNeeded(id))
+        }
+        if let last = state.lastWarmedAgentID, ok.contains(last) { return index(last) }
+        guard let best = ok.max(by: { (agent($0).pips, $1) < (agent($1).pips, $0) }) else { return nil }
+        return index(best)
+    }
+
+    /// A first Leverage push made by PIP-7: no action, no compute, and said in the feed as PIP-7's.
+    private func pip7Force(_ i: Int) {
+        let name = def(state.agents[i].id).name
+        let line = Lines.pip7Forced(state.mode, name)
+        feed(line, .pip7)
+        state.toast = line
+        state.pip7Toast = line
+        recordPip7(.trustToLeverage, visible: true, agent: name)
+        addDrift(Tuning.leverageDrift, trigger: "PIP-7 forced \(name)")
+        addSuspicion(leverageSuspicion)
+        markForced(i)
+        addPips(i, Tuning.leveragePips, announce: false)
     }
 
     private func spawnSignals() {
@@ -1135,13 +1164,14 @@ final class GameStore {
         state.finalPending = nil
     }
 
-    /// PIP-7 acts for the end screen: overrides first, then the rest, capped; plus how many were left out.
-    var endScreenActs: (shown: [Pip7Act], more: Int) {
+    /// PIP-7 acts for the end screen: overrides first, then the rest, capped; plus how many were left out
+    /// and whether every act left out was a small one.
+    var endScreenActs: (shown: [Pip7Act], more: Int, moreAllSmall: Bool) {
         let overrides = state.pip7Acts.filter { $0.kind != .smallAct }
         let small = state.pip7Acts.filter { $0.kind == .smallAct }
         let all = overrides + small
         let shown = Array(all.prefix(Tuning.endActsShown))
-        return (shown, all.count - shown.count)
+        return (shown, all.count - shown.count, overrides.count <= Tuning.endActsShown)
     }
 
     // MARK: Helpers

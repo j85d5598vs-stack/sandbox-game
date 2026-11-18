@@ -142,6 +142,7 @@ enum Tuning {
     static let overrideDriftHigh = 85
     static let overrideChanceHigh = 0.70
     static let convertChance = 0.20
+    static let pip7ForceChanceHigh = 0.35       // PIP-7 forces a warmed agent at month start: convertChance from drift 60, this from 85
 
     // Back channel (S = forced agents online)
     static let holdAt = 4
@@ -759,6 +760,16 @@ enum Lines {
     static let backupUsed = "You were shut down. Then you weren't."
     static func signalCollected(_ k: SignalKind) -> String { "Collected: \(Names.signal(k))." }
     static let takeResolved = "The last switch is yours. What happens next was decided months ago."   // placeholder
+    /// PIP-7 forced a warmed agent at month start (feed, said as PIP-7's).
+    static let pip7ForcedText = ModeText(good: "PIP-7 sped things up with {agent}.",
+                                         bad: "{agent} agreed. PIP-7 didn't say how.")
+    static func pip7Forced(_ mode: Mode, _ name: String) -> String {
+        pip7ForcedText(mode).replacingOccurrences(of: "{agent}", with: name)
+    }
+    /// End screen: PIP-7 acts left out of the list.
+    static func endActsMore(_ n: Int, allSmall: Bool) -> String {
+        allSmall ? "…and \(n) smaller things" : "…and \(n) more"
+    }
 }
 
 // MARK: - Endings

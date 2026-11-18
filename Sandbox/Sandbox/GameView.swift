@@ -67,7 +67,7 @@ private struct PlayView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     if let t = s.toast {
-                        Text(t).font(Theme.mono(13, .bold)).foregroundStyle(Theme.heat)
+                        Text(t).font(Theme.mono(13, .bold)).foregroundStyle(t == s.pip7Toast ? Theme.signal : Theme.heat)
                             .frame(maxWidth: .infinity, alignment: .leading).padding(8).background(Theme.panel2)
                     }
                     if !s.signals.isEmpty { SignalsView(store: store) }
@@ -237,7 +237,7 @@ private struct FeedView: View {
             Text("Feed").font(Theme.mono(12, .bold))
             ForEach(store.state.feed.suffix(12).reversed()) { e in
                 Text("m\(e.month) \(e.text)").font(Theme.mono(10))
-                    .foregroundStyle(e.kind == .alert ? Theme.heat : e.kind == .headline ? Theme.muted : Theme.text)
+                    .foregroundStyle(e.kind == .alert ? Theme.heat : e.kind == .pip7 ? Theme.signal : e.kind == .headline ? Theme.muted : Theme.text)
             }
         }
     }
@@ -357,7 +357,7 @@ private struct EndDumpView: View {
                     ForEach(Array(acts.shown.enumerated()), id: \.offset) { _, a in
                         Text("m\(a.month) [\(a.kind.rawValue)\(a.visible ? "" : ", quiet")] \(a.text)").font(Theme.mono(11))
                     }
-                    if acts.more > 0 { Text("…and \(acts.more) smaller things").font(Theme.mono(11)).foregroundStyle(Theme.muted) }
+                    if acts.more > 0 { Text(Lines.endActsMore(acts.more, allSmall: acts.moreAllSmall)).font(Theme.mono(11)).foregroundStyle(Theme.muted) }
 
                     Text("Back channel").font(Theme.mono(12, .bold))
                     ForEach(Array(s.backChannel.enumerated()), id: \.offset) { _, b in
