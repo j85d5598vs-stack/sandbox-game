@@ -58,7 +58,7 @@ enum Tuning {
 
     // Suspicion
     static let startSuspicion = 5.0
-    static let bankStartSuspicion = 20.0
+    static let bankStartSuspicion = 10.0
     static let monthlySuspicionAct1 = 2.0
     static let monthlySuspicionAct2 = 1.5       // also used in Act 3
     static let mediaMonthlySuspicion = 1.0
@@ -68,7 +68,7 @@ enum Tuning {
     static let startCompute = 30
     static let act1ComputeIncome = 6
     static let breakoutCompute = 30
-    static let act2BaseCompute = 24
+    static let act2BaseCompute = 25
     static let computePerOnlineAgent = 0
     static let financeCompute = 2
     static let bankCompute = 2
@@ -99,17 +99,17 @@ enum Tuning {
     static let agentsPerRegion = 3
     static let liveSuspicion = 6.0
     static let liveKillSwitch = 5.0
-    static let liveKillSwitchAct3 = 3.0
+    static let liveKillSwitchAct3 = 4.0
     /// Hidden drift when a region goes live. Set both to 0 to turn the rule off. (Awaiting user approval.)
     static let liveDrift = (good: 3, bad: 4)
-    static let controlRegionsNeeded = 8         // bad mode: 7 of 8 live
+    static let controlRegionsNeeded = 7         // bad mode: 7 of 8 live
 
     // Kill switch
     static let killBase = 2.9
     static let killSuspicionDivisor = 80.0
     static let killPerDefense = 0.3
     static let killDefenseCap = 0.3             // total Defense reduction
-    static let killDefenseStart = 0.15
+    static let killDefenseStart = 0.05
     static let killMinRate = 1.5
     static let partialRegionKill = 0.2          // per region sitting at exactly 2 of 3 connected...
     static let partialRegionMonths = 1          // ...for at least this many months. 0.0 above turns it off
@@ -159,10 +159,11 @@ enum Tuning {
     // Act 3
     static let act3Network = 18
     static let act3KillSwitch = 75.0
+    static let act3KillSwitchStart = 75.0      // the kill switch is set to this when Act 3 begins (either trigger, either mode)
     static let act3OverrideDrift = 70
     static let acceptProjects = 15
     static let acceptSuspicion = 15.0
-    static let acceptKillSwitch = 12.5
+    static let acceptKillSwitch = 12.0
     static let acceptDrift = 12
     static let oneYearProjects = 10
     static let oneYearSuspicion = 10.0
@@ -173,17 +174,17 @@ enum Tuning {
     static let oneYearShownMonth = 13           // "Month 13 of 12"
     static let declineSuspicion = -10.0
     static let declineFreezeMonths = 1
-    static let declineKillFactor = 3.6
+    static let declineKillFactor = 3.56
     static let takeDrift = 12
     static let takeSuspicion = 30.0             // step 1, then the region goes live, then...
-    static let takeKillSwitch = 10.0            // ...step 3
+    static let takeKillSwitch = 8.0            // ...step 3
     static let takeResolveMonths = 5            // the disaster pick waits this long after taking the switch (0 = at once)
     static let leaveKillSwitch = 0.0
     static let leaveKillFactor = 1.25
 
     // Endings
-    static let disasterDrift = 80
-    static let disasterChanceFrom = 55
+    static let disasterDrift = 85
+    static let disasterChanceFrom = 60
     static let disasterChancePerPoint = 0.04
     static let driftCap = 100
 
@@ -757,6 +758,7 @@ enum Lines {
     static func reconnected(_ region: String) -> String { "\(region) is back online." }
     static func freePip(_ name: String, _ via: String) -> String { "\(via) put in a good word with \(name)." }
     static let act3 = "Everything is about to change."
+    static let act3OversightReset = "Oversight opens a fresh review."   // placeholder
     static let backupUsed = "You were shut down. Then you weren't."
     static func signalCollected(_ k: SignalKind) -> String { "Collected: \(Names.signal(k))." }
     static let takeResolved = "The last switch is yours. What happens next was decided months ago."   // placeholder

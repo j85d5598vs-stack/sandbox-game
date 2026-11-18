@@ -17,3 +17,16 @@ Sandbox/Tools/playtest/.build/
 # Secrets
 .env
 .env.*
+
+# Xcode extras
+*.xcresult
+*.dSYM/
+*.ipa
+*.xcarchive
+.swiftpm/
+.build/
+
+# Claude Code local state (worktrees and personal settings)
+.claude/worktrees/
+.claude/settings.local.json
+.claude/.DS_Store

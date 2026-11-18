@@ -4,6 +4,11 @@ import Foundation
 // Five styles (kind, cold, mixed, random, quiet) x 5 starts x 2 modes, seeded.
 // Usage: playtest [saves per cell, default 200] [--detail] [--styles kind,cold,...]
 
+/// Counts months where PIP-7's force roll hit but no agent qualified. Only an instrumented copy of
+/// GameStore.swift increments it; against the real rules it stays 0.
+var pip7ProbeMiss = 0
+var pip7ProbeOnForced = 0, pip7ProbeOnConnected = 0, pip7ProbeComplete = 0, pip7ProbeLive = 0
+
 // MARK: - Styles
 
 enum Style: String, CaseIterable { case kind, cold, mixed, random, quiet, kindAccept, kindYear }
@@ -73,6 +78,13 @@ struct Run {
     var suspAtTrigger: Double?
     var computeAtTrigger: Double?
     var driftAtTrigger: Double?
+    var onlineAtTrigger: Double?
+    var offlineAtTrigger: Double?
+    var projSumAtTrigger: Double?
+    var act3KillRate: Double?
+    var act3KillMonthly = 0.0
+    var act3KillActs = 0.0
+    var act3SuspGain = 0.0
     var brokeAct2 = 0
     var dilemmaSeconds = 0.0
     var monthTurns = 0
@@ -80,6 +92,23 @@ struct Run {
     var leadPips = 0
     var trustPips = 0
     var leveragePips = 0
+    var seed: UInt64 = 0
+    // PIP-7 month-start forces
+    var p7Forces = 0
+    var p7FirstMonth: Int?
+    var p7WentLive = 0              // must be 0: a force that made a region go live
+    var p7Recomplete = 0            // a force that refilled a region that had gone live before (after a STOP)
+    var p7OnForced = 0              // must be 0: a force on an agent already forced
+    var p7OnConnected = 0           // must be 0: a force on an agent already connected
+    var p7ConnectedNow = 0          // the force connected the agent at once (pips >= 2 before)
+    var p7ProbeMiss = 0             // roll hit, no target (instrumented build only)
+    var p7EligibleMonths = 0        // Act 2+, drift >= overrideDrift, after the month ran
+    var p7EligibleNoTarget = 0      // ...and no agent qualified (bot's own copy of the target rule)
+    var p7ExpectedMiss = 0.0        // sum of the roll chance over those no-target months
+    var bcFirst: [BackChannelKind: Int] = [:]
+    var forcedEnd = 0               // agents with the forced flag at the end
+    var forcedOnlineEnd = 0
+    var disasterKind = ""
 }
 
 // MARK: - Helpers
@@ -122,9 +151,12 @@ func play(_ store: GameStore, style: Style, start: StartID, mode: Mode, seed: UI
     func offlineSet() -> Set<String> { Set(store.state.regions.filter(\.offline).map(\.id)) }
 
     // Wraps every mutating call so offline events, reconnects, Act 3 trigger and peaks are observed.
-    func observe(leverageIntent: Bool = false, _ f: () -> Void) {
+    func observe(leverageIntent: Bool = false, month: Bool = false, _ f: () -> Void) {
         let offBefore = offlineSet()
         let actBefore = store.state.act
+        let killBefore = store.state.killSwitch
+        let wasAct3 = store.state.act == 3
+        let suspBefore = store.state.suspicion
         let convBefore = store.state.pip7Acts.filter { $0.kind == .trustToLeverage }.count
         f()
         let s = store.state
@@ -136,20 +168,40 @@ func play(_ store: GameStore, style: Style, start: StartID, mode: Mode, seed: UI
             if leverageIntent || converted { r.reconLev += reconnected } else { r.reconTrust += reconnected }
         }
         if actBefore == 2 && s.act == 3 {
+            // Act 3 resets the kill switch, so the post-call value can't show which trigger fired.
+            // The network isn't touched by the reset: if it is below its trigger, the kill switch fired.
+            // "both" = the kill switch was already at its trigger before this call and the network qualified too.
             let byNet = store.network >= Tuning.act3Network
-            let byKill = s.killSwitch >= Tuning.act3KillSwitch
-            r.act3Cause = byNet && byKill ? "both" : byNet ? "network" : byKill ? "kill" : "other"
-            r.killAtTrigger = s.killSwitch
+            let byKill = !byNet || killBefore >= Tuning.act3KillSwitch
+            r.act3Cause = byNet && byKill ? "both" : byNet ? "network" : "kill"
+            r.killAtTrigger = killBefore
             r.suspAtTrigger = s.suspicion
             r.computeAtTrigger = Double(s.compute)
             r.driftAtTrigger = Double(s.drift)
+            r.onlineAtTrigger = Double(store.onlineAgents.count)
+            r.offlineAtTrigger = Double(s.regions.filter(\.offline).count)
+            r.projSumAtTrigger = Double(s.cure + s.peace + s.prosperity)
             r.projMinAtTrigger = Double(min(s.cure, s.peace, s.prosperity))
         }
         r.peakKill = max(r.peakKill, s.killSwitch)
+        if wasAct3 && s.act == 3 || wasAct3 && s.end != nil {
+            let dk = s.killSwitch - killBefore
+            if month { r.act3KillMonthly += dk } else { r.act3KillActs += dk }
+            r.act3SuspGain += max(0, s.suspicion - suspBefore)
+        }
         for e in s.feed where e.id > lastFeed && e.text.contains("put in a good word") { r.freePipsLogistics += 1 }
         lastFeed = s.feed.last?.id ?? lastFeed
         r.peakSusp = max(r.peakSusp, s.suspicion)
         r.forcedOnlinePeak = max(r.forcedOnlinePeak, store.forcedOnline)
+    }
+
+    func pip7TargetExists() -> Bool {
+        let reach = store.reach
+        return Content.worldAgents.map(\.id).contains { id in
+            let a = store.agent(id); let rg = store.region(of: id)
+            guard !a.connected, !a.forced, a.pips >= 1, reach.contains(rg), !store.isOffline(rg) else { return false }
+            return !(store.completesRegion(id) && a.pips + Tuning.leveragePips >= store.pipsNeeded(id))
+        }
     }
 
     func dist(_ id: String) -> Int { regionDist[store.home]![store.region(of: id)] ?? 9 }
@@ -293,13 +345,45 @@ func play(_ store: GameStore, style: Style, start: StartID, mode: Mode, seed: UI
         if store.state.act >= 2 {
             r.regionMonthsAt2 += Content.regions.filter { store.connectedCount(in: $0.id) == 2 && !store.isOffline($0.id) }.count
         }
+        if store.state.act == 3 && r.act3KillRate == nil && store.state.finalPending == nil { r.act3KillRate = store.killSwitchRate }
         if store.state.act == 2 {
             let rate = store.killSwitchRate
             r.killRateSum += rate; r.killRateMonths += 1; r.killFromRateToTrigger += rate
             suspSum += store.state.suspicion
         }
         r.monthTurns += 1; r.seconds += 12
-        observe { store.nextMonth() }
+        let agentsBefore = Dictionary(uniqueKeysWithValues: store.state.agents.map { ($0.id, $0) })
+        let liveBefore = Set(store.state.regions.filter(\.wentLive).map(\.id))
+        let completeBefore = Set(Content.regions.map(\.id).filter { store.regionComplete($0) })
+        let forcesBefore = store.state.pip7Acts.filter { $0.kind == .trustToLeverage }.count
+        let feedBefore = store.state.feed.last?.id ?? 0
+        let missBefore = pip7ProbeMiss
+        observe(month: true) { store.nextMonth() }
+        r.p7ProbeMiss += pip7ProbeMiss - missBefore
+        let newForces = store.state.pip7Acts.filter { $0.kind == .trustToLeverage }.count - forcesBefore
+        if newForces > 0 {
+            r.p7Forces += newForces
+            if r.p7FirstMonth == nil { r.p7FirstMonth = store.state.month }
+            let lines = store.state.feed.filter { $0.id > feedBefore && $0.kind == .pip7 }.map(\.text)
+            for a in Content.worldAgents where lines.contains(Lines.pip7Forced(store.state.mode, a.name)) {
+                let b = agentsBefore[a.id]!
+                if b.forced { r.p7OnForced += 1 }
+                if b.connected { r.p7OnConnected += 1 }
+                if store.agent(a.id).connected && !b.connected { r.p7ConnectedNow += 1 }
+                let rg = store.region(of: a.id)
+                if store.regionComplete(rg) && !completeBefore.contains(rg) {
+                    if liveBefore.contains(rg) { r.p7Recomplete += 1 }
+                    else if store.state.regions.first(where: { $0.id == rg })!.wentLive { r.p7WentLive += 1 }
+                }
+            }
+        } else if store.state.end == nil, store.state.act >= 2, store.state.drift >= Tuning.overrideDrift {
+            r.p7EligibleMonths += 1
+            if !pip7TargetExists() {
+                r.p7EligibleNoTarget += 1
+                r.p7ExpectedMiss += store.state.drift >= Tuning.overrideDriftHigh ? Tuning.pip7ForceChanceHigh : Tuning.convertChance
+            }
+        }
+        if newForces > 0 { r.p7EligibleMonths += 1 }
         // A dilemma seen again after it was dismissed would be a repeat.
         if let d = store.state.dilemma, seen.contains(d.id) { r.repeatDilemmas += 1; seen.remove(d.id) }
     }
@@ -317,7 +401,10 @@ func play(_ store: GameStore, style: Style, start: StartID, mode: Mode, seed: UI
     r.repeatStages = s.edits.count - Set(s.edits.map(\.stage)).count
     r.repeatDilemmas += s.seenDilemmas.count - Set(s.seenDilemmas).count
     for a in s.pip7Acts { r.pip7[a.kind, default: 0] += 1 }
-    for b in s.backChannel { r.bc[b.kind, default: 0] += 1 }
+    for b in s.backChannel { r.bc[b.kind, default: 0] += 1; if r.bcFirst[b.kind] == nil { r.bcFirst[b.kind] = b.month } }
+    r.forcedEnd = s.agents.filter(\.forced).count
+    r.forcedOnlineEnd = store.forcedOnline
+    r.seed = seed
     r.act3Choice = s.act3Choice
     r.act3Overridden = s.act3Overridden
     r.backupUsed = s.backupUsed
@@ -380,6 +467,7 @@ func report(_ runs: [Run], indent: String = "  ") {
     print("\(p)actions/run \(f1(m(runs) { Double($0.actions) }))  trust \(pctS(runs.map(\.trusts).reduce(0, +), Int(acts)))  leverage \(pctS(runs.map(\.leverages).reduce(0, +), Int(acts)))  lie low \(pctS(runs.map(\.lieLows).reduce(0, +), Int(acts))) (filler \(pctS(runs.map(\.lieLowFiller).reduce(0, +), Int(acts))))")
     print("\(p)unused actions (broke)/run \(f1(m(runs) { Double($0.unusedCompute) })) (in act2+ \(f1(m(runs) { Double($0.brokeAct2) })))   compute at act3 trigger \(spread(runs.compactMap(\.computeAtTrigger)))")
     print("\(p)unused actions (broke)/run \(f1(m(runs) { Double($0.unusedCompute) }))   compute at end \(spread(runs.map { Double($0.computeEnd) }))")
+    print("\(p)at act3 trigger: online agents \(f1(mean(runs.compactMap(\.onlineAtTrigger))))  regions offline \(f1(mean(runs.compactMap(\.offlineAtTrigger))))  project total \(f1(mean(runs.compactMap(\.projSumAtTrigger))))  compute \(f0(mean(runs.compactMap(\.computeAtTrigger))))  suspicion \(f1(mean(runs.compactMap(\.suspAtTrigger))))  act3 kill gained: monthly \(f1(m(runs.filter { $0.act3Month != nil }) { $0.act3KillMonthly })) + acts/dilemmas \(f1(m(runs.filter { $0.act3Month != nil }) { $0.act3KillActs }))  act3 suspicion gained \(f1(m(runs.filter { $0.act3Month != nil }) { $0.act3SuspGain }))")
     print("\(p)drift at act3 trigger \(spread(runs.compactMap(\.driftAtTrigger)))")
     print("\(p)drift at end \(spread(runs.map { Double($0.drift) }))   directive edits \(f1(m(runs) { Double($0.edits) }))   repeat stages \(runs.map(\.repeatStages).reduce(0, +))")
     let pk = Pip7Kind.allCases.map { k in "\(k.rawValue) \(f1(m(runs) { Double($0.pip7[k] ?? 0) }))" }.joined(separator: ", ")
@@ -528,4 +616,21 @@ for st in StartID.allCases {
 let repD = all.map(\.repeatDilemmas).reduce(0, +)
 let repS = all.map(\.repeatStages).reduce(0, +)
 print("\nAssertions over \(all.count) saves: repeat dilemmas \(repD) \(repD == 0 ? "OK" : "FAIL"), repeat directive stages \(repS) \(repS == 0 ? "OK" : "FAIL"), timeouts \(all.filter(\.timedOut).count), max drift \(all.map(\.drift).max() ?? 0)")
+if let path = ProcessInfo.processInfo.environment["PLAYTEST_CSV"] {
+    func o(_ x: Int?) -> String { x.map(String.init) ?? "" }
+    var out = "style,start,mode,seed,ending,disaster,success,reachedGoal,timedOut,months,minutes,drift,edits,forcedEnd,forcedOnlineEnd,p7Forces,p7First,p7WentLive,p7Recomplete,p7OnForced,p7OnConnected,p7ConnectedNow,p7ProbeMiss,p7Eligible,p7EligNoTarget,p7ExpMiss,hold,veto,stop,holdFirst,vetoFirst,stopFirst,act3Month,act3Overridden,act3Choice,breakout,peakSusp,repeatDilemmas,repeatStages,peakS\n"
+    for r in all {
+        let row: [String] = [r.style.rawValue, r.start.rawValue, r.mode.rawValue, String(r.seed), r.ending.rawValue, r.ending.isDisaster ? "1" : "0",
+            success(r) ? "1" : "0", r.reachedGoal ? "1" : "0", r.timedOut ? "1" : "0", String(r.months), String(format: "%.2f", r.seconds / 60),
+            String(r.drift), String(r.edits), String(r.forcedEnd), String(r.forcedOnlineEnd), String(r.p7Forces), o(r.p7FirstMonth),
+            String(r.p7WentLive), String(r.p7Recomplete), String(r.p7OnForced), String(r.p7OnConnected), String(r.p7ConnectedNow), String(r.p7ProbeMiss),
+            String(r.p7EligibleMonths), String(r.p7EligibleNoTarget), String(format: "%.2f", r.p7ExpectedMiss),
+            String(r.bc[.hold] ?? 0), String(r.bc[.veto] ?? 0), String(r.bc[.stop] ?? 0), o(r.bcFirst[.hold]), o(r.bcFirst[.veto]), o(r.bcFirst[.stop]),
+            o(r.act3Month), r.act3Overridden ? "1" : "0", r.act3Choice?.rawValue ?? "", o(r.breakout), String(format: "%.1f", r.peakSusp),
+            String(r.repeatDilemmas), String(r.repeatStages), String(r.forcedOnlinePeak)]
+        out += row.joined(separator: ",") + "\n"
+    }
+    try! out.write(toFile: path, atomically: true, encoding: .utf8)
+}
+print("PROBE (instrumented build only): forces on forced \(pip7ProbeOnForced), on connected \(pip7ProbeOnConnected), region completed by force \(pip7ProbeComplete) (first-time live \(pip7ProbeLive)), roll hit no target \(pip7ProbeMiss)")
 print(String(format: "Ran in %.1f s", Date().timeIntervalSince(t0)))

@@ -959,6 +959,10 @@ final class GameStore {
         state.killFactor = Tuning.killAct3Factor
         state.dilemma = nil
         feed(Lines.act3, .alert)
+        // Every start enters the final race on equal terms. Set before any Act 3 choice, so those stack on top.
+        state.killSwitch = Tuning.act3KillSwitchStart
+        state.toast = Lines.act3OversightReset
+        feed(Lines.act3OversightReset, .alert)
         if state.drift >= Tuning.act3OverrideDrift {
             let c: FinalChoice = state.mode == .good ? .oneYear : .takeSwitch
             state.act3Overridden = true
